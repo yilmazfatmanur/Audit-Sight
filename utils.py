@@ -24,37 +24,8 @@ _DISCOUNT_LINE = re.compile(
     re.IGNORECASE,
 )
 
-# Binlik ayraçlı sayı: 1.950,00 veya 1,950.00 veya 763,00
 _NUM = r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2}"
-
-_TOTAL_KEYWORD_PATTERNS: List[Tuple[re.Pattern, int]] = [
-    (re.compile(r"ödenecek\s*tutar\D{0,50}(" + _NUM + r")", re.I), 100),
-    (re.compile(r"vergiler\s*dahil\D{0,50}(" + _NUM + r")", re.I), 98),
-    (re.compile(r"genel\s*toplam\D{0,50}(" + _NUM + r")", re.I), 95),
-    (re.compile(r"toplam\s*tutar\D{0,50}(" + _NUM + r")", re.I), 92),
-    (re.compile(r"(?<![\w])toplam\D{0,25}(" + _NUM + r")", re.I), 70),
-]
-
-# NET patterns - REMOVED "mal hizmet toplam" to avoid wrong picks
-_NET_PATTERNS = [
-    re.compile(r"(?:kdv\s*matrahı?|vergi\s*matrahı?|matrah)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-    re.compile(r"(?:net\s*tutar)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-]
-
-_KDV_PATTERNS = [
-    re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s*:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"hesaplanan\s*kdv[^:]{0,40}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"kdv\s*tutar[ıi][^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-]
-
-_KDV_20_PATTERNS = [
-    re.compile(r"hesaplanan\s*kdv\s*\(%20[.,]?\d*\)\s*:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"hesaplanan\s*kdv\s*\(%20[.,]?\d*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-]
-
 _MONEY_IN_LINE = re.compile(r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2}")
-
 _PRODUCT_ROW_HINT = re.compile(r"\badet\b|\bpcs\b|\bbirim\s*fiyat\b", re.I)
 
 
@@ -133,55 +104,6 @@ def _lines_from_text(text: str) -> List[Dict[str, Any]]:
 
 def _lines_bottom_first(lines_y_sorted_asc: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return sorted(lines_y_sorted_asc, key=lambda x: x["y"], reverse=True)
-
-
-def _collect_pattern_amounts(
-    lines_y_asc: List[Dict[str, Any]], patterns: List[re.Pattern], *, skip_product_rows: bool = True
-) -> List[Tuple[float, float]]:
-    found: List[Tuple[float, float]] = []
-    for ln in lines_y_asc:
-        tx = ln["text"]
-        if _is_discount_line(tx):
-            continue
-        if skip_product_rows and bool(_PRODUCT_ROW_HINT.search(tx)):
-            continue
-        for pat in patterns:
-            m = pat.search(tx)
-            if not m:
-                continue
-            v = parse_tr_number(m.group(1))
-            if v is not None and 0 < v < 50_000_000:
-                found.append((float(v), float(ln["y"])))
-                break
-    return found
-
-
-def _grand_total_candidates(lines_bottom_first: List[Dict[str, Any]]) -> List[Tuple[float, int, float]]:
-    cands: List[Tuple[float, int, float]] = []
-    seen: set = set()
-
-    for ln in lines_bottom_first:
-        tx = ln["text"]
-        if _is_discount_line(tx):
-            continue
-        if bool(_PRODUCT_ROW_HINT.search(tx)):
-            continue
-        y = float(ln["y"])
-        for pat, pri in _TOTAL_KEYWORD_PATTERNS:
-            m = pat.search(tx)
-            if not m:
-                continue
-            v = parse_tr_number(m.group(1))
-            if v is None or v <= 0:
-                continue
-            key = (round(v, 2), pri)
-            if key in seen:
-                continue
-            seen.add(key)
-            cands.append((float(v), int(pri), y))
-
-    cands.sort(key=lambda t: (-t[1], -t[2]))
-    return cands
 
 
 def _extract_last_currency_value(lines_bottom_first: List[Dict[str, Any]]) -> Optional[float]:
@@ -280,14 +202,13 @@ def validate_vat(
         elif sum_ok:
             result.update({
                 "status": "ŞÜPHELİ",
-                "label": f"⚠️ Net+KDV=Toplam (±{float(GOLDEN_RULE_TOL):.2f}); KDV oranı standart değil.",
+                "label": "⚠️ Net+KDV=Toplam; KDV oranı standart değil.",
                 "color": "orange",
             })
         else:
-            diff = abs((net_d + kdv_eff) - total_d)
             result.update({
                 "status": "RISK",
-                "label": f"🚨 Altın kural başarısız: Net+KDV ≠ Toplam (|fark|={float(diff):.2f}).",
+                "label": "🚨 Altın kural başarısız.",
                 "color": "red",
             })
     except Exception as exc:
@@ -358,171 +279,77 @@ def extract_invoice_fields(
     text: str, ocr_lines: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
-    Iskontolu faturalar için doğru Net/KDV/Toplam tespiti.
-    Öncelik: KDV Matrahı (net) + Hesaplanan KDV (kdv) + Ödenecek Tutar (toplam)
+    Fatura alanlarını çıkarır.
+    SADECE: KDV Matrahı (Net), Hesaplanan KDV, Ödenecek Tutar kullanılır.
     """
     lines_y = _parse_ocr_lines(ocr_lines)
     if not lines_y:
         lines_y = _lines_from_text(text)
 
-    bottom_first = _lines_bottom_first(lines_y)
-
     net = 0.0
     kdv = 0.0
-    genel_toplam = None
+    total = None
 
-    # ---- 1. KDV MATRAHI (NET) ----
-    net_from_matrah = None
-    # Aynı satırda ara
+    # 1. KDV MATRAHI (NET)
     for ln in lines_y:
-        tx = _normalize_whitespace(ln["text"])
-        # Önce "KDV Matrahı (%20.00): 404,84" gibi
-        m = re.search(r"kdv\s*matrahı?\s*\([^)]*\)\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if not m:
-            m = re.search(r"kdv\s*matrahı?\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if m:
-            net_from_matrah = parse_tr_number(m.group(1))
-            if net_from_matrah:
+        tx = ln["text"].lower()
+        # "kdv matrahı (%20.00): 404,84" veya "kdv matrahı: 404,84"
+        match = re.search(r"kdv\s*matrahı?\s*\([^)]*\)\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if not match:
+            match = re.search(r"kdv\s*matrahı?\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if match:
+            val = parse_tr_number(match.group(1))
+            if val and val > 0:
+                net = val
                 break
 
-    # Bulunamadıysa, "KDV Matrahı" içeren satırdan sonraki satırda sayı ara
-    if not net_from_matrah:
-        for i, ln in enumerate(lines_y):
-            if re.search(r"kdv\s*matrahı?", ln["text"], re.I):
-                # sonraki satır(lar)da sayı ara
-                for j in range(i+1, min(i+4, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    m = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", next_tx)
-                    if m:
-                        net_from_matrah = parse_tr_number(m.group(1))
-                        if net_from_matrah:
-                            break
-                if net_from_matrah:
-                    break
-
-    # ---- 2. HESAPLANAN KDV ----
-    kdv_from_calc = None
+    # 2. HESAPLANAN KDV
     for ln in lines_y:
-        tx = _normalize_whitespace(ln["text"])
-        # Aynı satırda ara
-        m = re.search(r"hesaplanan\s*kdv\s*\([^)]*\)\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if not m:
-            m = re.search(r"hesaplanan\s*kdv\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if m:
-            kdv_from_calc = parse_tr_number(m.group(1))
-            if kdv_from_calc:
+        tx = ln["text"].lower()
+        match = re.search(r"hesaplanan\s*kdv\s*\([^)]*\)\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if not match:
+            match = re.search(r"hesaplanan\s*kdv\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if match:
+            val = parse_tr_number(match.group(1))
+            if val and val > 0:
+                kdv = val
                 break
 
-    # Bulunamadıysa, "Hesaplanan KDV" içeren satırdan sonraki satırda sayı ara
-    if not kdv_from_calc:
-        for i, ln in enumerate(lines_y):
-            if re.search(r"hesaplanan\s*kdv", ln["text"], re.I):
-                for j in range(i+1, min(i+4, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    m = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", next_tx)
-                    if m:
-                        kdv_from_calc = parse_tr_number(m.group(1))
-                        if kdv_from_calc:
-                            break
-                if kdv_from_calc:
-                    break
-
-    # ---- 3. ÖDENECEK TUTAR (GENEL TOPLAM) ----
-    total_from_payable = None
+    # 3. ÖDENECEK TUTAR (GENEL TOPLAM)
     for ln in lines_y:
-        tx = _normalize_whitespace(ln["text"])
-        m = re.search(r"ödenecek\s*tutar\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if not m:
-            m = re.search(r"vergiler\s*dahil\s*toplam\s*tutarı?\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx, re.I)
-        if m:
-            total_from_payable = parse_tr_number(m.group(1))
-            if total_from_payable:
+        tx = ln["text"].lower()
+        match = re.search(r"ödenecek\s*tutar\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if not match:
+            match = re.search(r"vergiler\s*dahil\s*toplam\s*tutarı?\s*:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+        if match:
+            val = parse_tr_number(match.group(1))
+            if val and val > 0:
+                total = val
                 break
 
-    # Bulunamadıysa, "Ödenecek Tutar" içeren satırdan sonraki satırda sayı ara
-    if not total_from_payable:
-        for i, ln in enumerate(lines_y):
-            if re.search(r"ödenecek\s*tutar|vergiler\s*dahil", ln["text"], re.I):
-                for j in range(i+1, min(i+4, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    m = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", next_tx)
-                    if m:
-                        total_from_payable = parse_tr_number(m.group(1))
-                        if total_from_payable:
-                            break
-                if total_from_payable:
-                    break
+    # Eksik alan varsa tamamla
+    if net > 0 and kdv > 0 and total is None:
+        total = float(_to_decimal_2(net) + _to_decimal_2(kdv))
+    elif net > 0 and total and total > net and kdv == 0:
+        kdv = float(_to_decimal_2(total) - _to_decimal_2(net))
+    elif kdv > 0 and total and total > kdv and net == 0:
+        net = float(_to_decimal_2(total) - _to_decimal_2(kdv))
 
-    # ---- 4. EŞLEŞTİRME ----
-    if net_from_matrah and kdv_from_calc and total_from_payable:
-        # Doğrula: net + kdv ≈ total
-        net_dec = _to_decimal_2(net_from_matrah)
-        kdv_dec = _to_decimal_2(kdv_from_calc)
-        total_dec = _to_decimal_2(total_from_payable)
-        if abs(net_dec + kdv_dec - total_dec) <= Decimal("1.00"):
-            net = net_from_matrah
-            kdv = kdv_from_calc
-            genel_toplam = total_from_payable
-            logger.info(f"Context extraction SUCCESS: Net={net}, KDV={kdv}, Total={genel_toplam}")
+    # Hala total yoksa en alttaki sayıyı al
+    if total is None:
+        bottom_first = _lines_bottom_first(lines_y)
+        total = _extract_last_currency_value(bottom_first)
 
-    # Eksik varsa, elimizdeki verilerle tamamla
-    if net == 0.0 and net_from_matrah:
-        net = net_from_matrah
-    if kdv == 0.0 and kdv_from_calc:
-        kdv = kdv_from_calc
-    if genel_toplam is None and total_from_payable:
-        genel_toplam = total_from_payable
-
-    # Net + KDV varsa, toplamı hesapla
-    if net > 0 and kdv > 0 and genel_toplam is None:
-        genel_toplam = float(_to_decimal_2(net) + _to_decimal_2(kdv))
-
-    # Net ve toplam varsa, KDV'yi hesapla
-    if kdv == 0.0 and net > 0 and genel_toplam and genel_toplam > net:
-        kdv = float(_to_decimal_2(genel_toplam) - _to_decimal_2(net))
-
-    # Toplam ve KDV varsa, net'i hesapla
-    if net == 0.0 and kdv > 0 and genel_toplam and genel_toplam > kdv:
-        net = float(_to_decimal_2(genel_toplam) - _to_decimal_2(kdv))
-
-    # Hala net yoksa, genel toplam adaylarından en büyüğü toplam olsun
-    if genel_toplam is None:
-        candidates = _grand_total_candidates(bottom_first)
-        if candidates:
-            genel_toplam = candidates[0][0]
-
-    # Son çare: en alttaki sayı
-    if genel_toplam is None:
-        last_val = _extract_last_currency_value(bottom_first)
-        if last_val:
-            genel_toplam = last_val
-
-    # Net hala 0 ise, KDV Matrahı veya diğer mantıklı değerleri dene
-    if net == 0.0 and genel_toplam:
-        # KDV Matrahı bulunamamışsa, toplamın %16.67'si (1/6) KDV olabilir (standart %20 için)
-        # Ama bu yanıltıcı olabilir, sadece fallback olarak
-        # Önce KDV Matrahı için tekrar dene
-        if not net_from_matrah:
-            for ln in lines_y:
-                if re.search(r"matrah", ln["text"], re.I):
-                    m = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", ln["text"])
-                    if m:
-                        net = parse_tr_number(m.group(1))
-                        if net:
-                            break
-        if net == 0.0:
-            # Hiç net bulunamadı, varsayılan olarak toplamın %83.33'ünü net al (KDV %20 ise)
-            net = float(_to_decimal_2(genel_toplam) / Decimal("1.20"))
-            kdv = float(_to_decimal_2(genel_toplam) - _to_decimal_2(net))
-
-    logger.info(f"FINAL: Net={net}, KDV={kdv}, Total={genel_toplam}")
+    # Son kontrol: net ve total varsa ama kdv yoksa hesapla
+    if net > 0 and total and total > net and kdv == 0:
+        kdv = float(_to_decimal_2(total) - _to_decimal_2(net))
 
     return {
         "firma_adi": "Tespit Edilemedi",
         "tarih": datetime.now().strftime("%Y-%m-%d"),
-        "net_tutar": float(net) if net is not None else 0.0,
-        "kdv_tutari": float(kdv) if kdv is not None else 0.0,
-        "genel_toplam": float(genel_toplam) if genel_toplam is not None else None,
+        "net_tutar": net,
+        "kdv_tutari": kdv,
+        "genel_toplam": total if total is not None else 0.0,
         "total_override_applied": False,
         "total_source": "context_based",
     }
