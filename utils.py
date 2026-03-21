@@ -9,44 +9,13 @@ import cv2
 import numpy as np
 import streamlit as st
 from PIL import Image
-import pytesseract  # Hatanın sebebi buydu, eklendi!
+import pytesseract
 
 logger = logging.getLogger(__name__)
 
-TOL = Decimal("0.05")
 GOLDEN_RULE_TOL = Decimal("0.85")
 
-_DISCOUNT_LINE = re.compile(
-    r"iskonto|indirim|isk\.|iade|discount|tevkifat",
-    re.IGNORECASE,
-)
-
-_NUM = r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2}"
-
-_TOTAL_KEYWORD_PATTERNS: List[Tuple[re.Pattern, int]] = [
-    (re.compile(r"ödenecek\s*tutar\D{0,50}(" + _NUM + r")", re.I), 100),
-    (re.compile(r"vergiler\s*dahil\D{0,50}(" + _NUM + r")", re.I), 98),
-    (re.compile(r"genel\s*toplam\D{0,50}(" + _NUM + r")", re.I), 95),
-    (re.compile(r"toplam\s*tutar\D{0,50}(" + _NUM + r")", re.I), 92),
-    (re.compile(r"(?<![\w])toplam\D{0,25}(" + _NUM + r")", re.I), 70),
-]
-
-_NET_PATTERNS = [
-    re.compile(r"(?:kdv\s*matrah|vergi\s*matrah|vergi\s*hari[cç]|matrah)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-    re.compile(r"(?:net\s*tutar)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-    re.compile(r"mal\s*hizmet\s*toplam\s*tutar[ıi]?\s*[:\s]\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-]
-
-_KDV_PATTERNS = [
-    re.compile(r"hesaplanan\s*kdv[^:]{0,40}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"hesaplanan\s*kdv\s*(?:ger[cç]ek)?\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"kdv\s*tutar[ıi][^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"(?:katma\s*değer|vergi\s*tutar(?:ı|i))[^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-]
-
 _MONEY_IN_LINE = re.compile(r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2}")
-_PRODUCT_ROW_HINT = re.compile(r"\badet\b|\bpcs\b|\bbirim\s*fiyat\b", re.I)
 
 @dataclass
 class OcrLine:
@@ -65,7 +34,7 @@ def _to_decimal_2(value: Any) -> Decimal:
 
 def parse_tr_number(num_str: Any) -> Optional[float]:
     if num_str is None: return None
-    s = str(num_str).replace(" ", "").replace("TL", "").replace("tl", "").upper()
+    s = str(num_str).replace(" ", "").upper()
     s = s.replace("B", "8").replace("O", "0").replace("S", "5").replace("I", "1").replace("L", "1")
     s = re.sub(r"[^0-9.,-]", "", s)
     if not s or s in {"-", "."}: return None
@@ -85,7 +54,6 @@ def _collect_all_money_amounts(lines: List[Dict]) -> List[float]:
     return vals
 
 def run_ocr(pil_img: Image.Image) -> Dict[str, Any]:
-    """Görüntü iyileştirme ile Pytesseract OCR."""
     w, h = pil_img.size
     pil_img = pil_img.resize((w*2, h*2), resample=Image.LANCZOS)
     img_np = np.array(pil_img.convert("RGB"))
@@ -96,7 +64,6 @@ def run_ocr(pil_img: Image.Image) -> Dict[str, Any]:
     return {"text": txt, "lines": lines}
 
 def extract_invoice_fields(text: str, ocr_lines: Optional[List[Dict]] = None) -> Dict[str, Any]:
-    """Matematiksel mantıkla alan çıkarımı."""
     lines = ocr_lines if ocr_lines else [{"text": t} for t in text.splitlines()]
     all_nums = sorted(list(set([round(v, 2) for v in _collect_all_money_amounts(lines)])), reverse=True)
     
@@ -127,7 +94,7 @@ def validate_vat(net: float, kdv: float, total: float) -> Dict:
     net_d, kdv_d, tot_d = _to_decimal_2(net), _to_decimal_2(kdv), _to_decimal_2(total)
     sum_ok = abs((net_d + kdv_d) - tot_d) <= GOLDEN_RULE_TOL
     if sum_ok and total > 0:
-        return {"status": "OK", "label": "✅ GÜVENLİ: Matematiksel Doğrulama Başarılı", "color": "green"}
+        return {"status": "OK", "label": "✅ GÜVENLİ: Altın Kural Doğrulandı", "color": "green"}
     return {"status": "RISK", "label": "🚨 RİSK: Hesaplama Tutarsız", "color": "red"}
 
 def suggest_accounting_code(firma: str, text: str) -> str:
