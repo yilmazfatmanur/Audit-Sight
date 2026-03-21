@@ -4,6 +4,7 @@ AuditSight Pro — OCR, sustainability stats, VAT validation (golden-rule cross-
 """
 import logging
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -11,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
+import pytesseract
 import streamlit as st
 from PIL import Image
 
@@ -609,31 +611,69 @@ def suggest_accounting_code(firma_adi: Any = None, text: Any = None) -> str:
         return "770 (Genel Gider)"
 
 
-@st.cache_resource(show_spinner=False)
-def load_easyocr_reader():
-    import easyocr
-
-    return easyocr.Reader(["tr", "en"], gpu=False)
-
-
 def run_ocr(pil_img: Image.Image) -> Dict[str, Any]:
-    reader = load_easyocr_reader()
-    img_np = np.array(pil_img.convert("RGB"))
+    """
+    OCR via system Tesseract only (tur+eng). Lines carry y_center for strict triple / math.
+    """
+    img_np = np.asarray(pil_img.convert("RGB"), dtype=np.uint8)
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    raw = reader.readtext(gray, detail=1)
-    lines: List[OcrLine] = []
-    for item in raw:
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+
+    _ocr_cfg = "--oem 3 --psm 6"
+    try:
+        data = pytesseract.image_to_data(
+            gray,
+            lang="tur+eng",
+            config=_ocr_cfg,
+            output_type=pytesseract.Output.DICT,
+        )
+    except pytesseract.TesseractError:
+        # Eksik tur traineddata (ör. minimal apt kurulumu) durumunda en azından İngilizce ile devam et
+        data = pytesseract.image_to_data(
+            gray,
+            lang="eng",
+            config=_ocr_cfg,
+            output_type=pytesseract.Output.DICT,
+        )
+
+    n = len(data.get("text", []))
+
+    line_words: Dict[Tuple[int, int, int], List[Tuple[int, str, float, float]]] = defaultdict(list)
+
+    for i in range(n):
+        raw_t = data["text"][i] or ""
+        t = raw_t.strip()
+        if not t:
+            continue
         try:
-            bbox = item[0]
-            txt = _normalize_whitespace(str(item[1]))
-            conf = float(item[2])
-            ys = [float(p[1]) for p in bbox]
-            y_c = sum(ys) / len(ys) if ys else 0.0
-        except (TypeError, IndexError, ValueError, KeyError):
-            txt = _normalize_whitespace(str(item[1]) if len(item) > 1 else "")
-            conf = float(item[2]) if len(item) > 2 else 0.0
-            y_c = 0.0
-        lines.append(OcrLine(text=txt, confidence=conf, y_center=y_c))
+            conf = float(data["conf"][i])
+        except (TypeError, ValueError):
+            conf = 0.0
+        if conf < 0:
+            conf = 0.0
+        block = int(data["block_num"][i])
+        par = int(data["par_num"][i])
+        line = int(data["line_num"][i])
+        left = int(data["left"][i])
+        top = int(data["top"][i])
+        height = int(data["height"][i])
+        y_c = float(top) + float(height) / 2.0
+        key = (block, par, line)
+        line_words[key].append((left, t, conf, y_c))
+
+    lines: List[OcrLine] = []
+    for key in sorted(line_words.keys()):
+        parts = sorted(line_words[key], key=lambda x: x[0])
+        joined = _normalize_whitespace(" ".join(p[1] for p in parts))
+        if not joined:
+            continue
+        ys = [p[3] for p in parts]
+        y_center = sum(ys) / len(ys) if ys else 0.0
+        confs = [p[2] for p in parts if p[2] > 0]
+        avg_conf = sum(confs) / len(confs) if confs else 0.0
+        lines.append(OcrLine(text=joined, confidence=float(avg_conf), y_center=y_center))
+
+    lines.sort(key=lambda ln: ln.y_center)
     return {
         "text": "\n".join(ln.text for ln in lines),
         "lines": [ln.__dict__ for ln in lines],
@@ -659,19 +699,36 @@ def extract_invoice_fields(
     total_source = "no_valid_math"
     override_applied = False
 
-    if strict_trio is not None:
-        net, kdv, genel_toplam = strict_trio
-        kdv = float(_resolve_vat_amount_shield(net, kdv, all_money_values) or 0.0)
+    def _apply_trio(
+        trio: Tuple[float, float, float],
+        *,
+        source: str,
+    ) -> None:
+        nonlocal net, kdv, genel_toplam, total_source, override_applied
+        n0, k0, g0 = trio
+        net = n0
+        kdv = float(_resolve_vat_amount_shield(net, k0, all_money_values) or 0.0)
         net, kdv = _normalize_net_vat_assignment(net, kdv)
+        genel_toplam = g0
         recalculated = float(_to_decimal_2(net) + _to_decimal_2(kdv))
         if abs(_to_decimal_2(genel_toplam) - _to_decimal_2(recalculated)) > GOLDEN_RULE_TOL:
             genel_toplam = recalculated
             override_applied = True
-        total_source = "strict_triple_match"
+        total_source = source
+
+    if strict_trio is not None:
+        _apply_trio(strict_trio, source="strict_triple_match")
     else:
-        net = 0.0
-        kdv = 0.0
-        genel_toplam = None
+        bottom_first = _lines_bottom_first(lines_y)
+        bottom_nums = _bottom_number_candidates(bottom_first)
+        vat_cands = _vat_candidates_from_lines(lines_y)
+        combo = _solve_trio_net_vat_total(bottom_nums, vat_cands)
+        if combo is not None:
+            _apply_trio(combo, source="combo_golden_match")
+        else:
+            net = 0.0
+            kdv = 0.0
+            genel_toplam = None
 
     return {
         "firma_adi": "Tespit Edilemedi",
