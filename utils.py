@@ -294,7 +294,9 @@ def extract_invoice_fields(
         tx = ln["text"]
         tx_lower = tx.lower()
         
+        # "KDV Matrahı" veya "Matrah" içeren satır
         if "kdv matrah" in tx_lower or "matrah" in tx_lower:
+            # Satırda sayı ara
             numbers = _MONEY_IN_LINE.findall(tx)
             if numbers:
                 for num in numbers:
@@ -303,6 +305,7 @@ def extract_invoice_fields(
                         net = val
                         break
             
+            # Sayı yoksa sonraki 2 satıra bak
             if net == 0:
                 idx = lines_y.index(ln)
                 for j in range(idx + 1, min(idx + 3, len(lines_y))):
@@ -325,6 +328,7 @@ def extract_invoice_fields(
         tx = ln["text"]
         tx_lower = tx.lower()
         
+        # "Hesaplanan KDV" içeren satır
         if "hesaplanan kdv" in tx_lower or ("hesaplanan" in tx_lower and "kdv" in tx_lower):
             numbers = _MONEY_IN_LINE.findall(tx)
             if numbers:
@@ -356,7 +360,8 @@ def extract_invoice_fields(
         tx = ln["text"]
         tx_lower = tx.lower()
         
-        if "ödenecek tutar" in tx_lower or "vergiler dahil" in tx_lower:
+        # "Ödenecek Tutar" veya "Vergiler Dahil" içeren satır
+        if "ödenecek tutar" in tx_lower or "ödenecek" in tx_lower or "vergiler dahil" in tx_lower:
             numbers = _MONEY_IN_LINE.findall(tx)
             if numbers:
                 for num in numbers:
@@ -382,7 +387,7 @@ def extract_invoice_fields(
         if total is not None:
             break
     
-    # ============ 4. ALTERNATİF: TÜM SAYILARI TOPLA VE MANTIKLI OLANI SEÇ ============
+    # ============ 4. ALTERNATİF: TÜM SAYILARI TOPLA ============
     if net == 0 or kdv == 0 or total is None:
         all_numbers = []
         for ln in lines_y:
@@ -453,5 +458,5 @@ def build_extracted_summary(ocr_text: str, ocr_lines: list, fields: dict) -> dic
             fields.get("kdv_tutari"),
             fields.get("genel_toplam"),
         ),
-        "ocr_lines": ocr_lines if isinstance(ocr_lines, list) else [],
+        "ocr_lines": ocr_lines if isinstance(ocr_lines, list) [],
     }
