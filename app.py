@@ -1,3 +1,4 @@
+# Audit-Sight/app.py
 """
 AuditSight Pro — Streamlit entry (bulletproof data + premium dark UI).
 """
@@ -156,10 +157,19 @@ init_sustainability_counter()
 # --- Sidebar
 with st.sidebar:
     st.markdown(
-        "<h2 style='color:white;margin-bottom:0;'>Smart Auditor Pro</h2>",
+        "<h2 style='color:white;margin-bottom:0;'>AuditSight Pro</h2>",
         unsafe_allow_html=True,
     )
     st.divider()
+    
+    
+    st.info("""
+    **🔍 Sistem Özeti**
+    AI destekli finansal denetim aracı.  
+    **Net + KDV = Toplam** algoritmasıyla veri doğruluğunu garanti eder.
+    """)
+    
+    st.caption("Developed by Fatmanur Yılmaz | 2026")
     tab_dash, tab_hist = st.tabs(["DASHBOARD", "GEÇMİŞ"])
 
     with tab_dash:
