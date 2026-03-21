@@ -36,16 +36,18 @@ _TOTAL_KEYWORD_PATTERNS: List[Tuple[re.Pattern, int]] = [
 ]
 
 _NET_PATTERNS = [
-    # Iki nokta üstlüye kilitle: "KDV Matrahı (%20.00): 404,84"
-    re.compile(r"(?:kdv\s*matrah|vergi\s*matrah|vergi\s*hari[cç]|matrah)[^:]{0,45}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"(?:net\s*tutar)[^:]{0,45}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    # X AURA gibi: "Mal Hizmet Toplam Tutarı: 1.625,00"
-    re.compile(r"mal\s*hizmet\s*toplam[^:]{0,20}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
+    # Iki nokta üstlü: "KDV Matrahı (%20.00): 404,84"
+    re.compile(r"(?:kdv\s*matrah|vergi\s*matrah|vergi\s*hari[cç]|matrah)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
+    re.compile(r"(?:net\s*tutar)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
+    # Noktalısız: "Mal Hizmet Toplam Tutarı 783,33 TL" veya "Mal Hizmet Toplam Tutarı: 1.625,00"
+    re.compile(r"mal\s*hizmet\s*toplam\s*tutar[ıi]?\s*[:\s]\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
 ]
 
 _KDV_PATTERNS = [
-    # "Hesaplanan KDV (%20.00) : 80,97" — iki nokta üstlü
+    # "Hesaplanan KDV (%20.00) : 80,97" veya "Hesaplanan KDV GERÇEK (%20.0) 156,67" — iki nokta üstlü
     re.compile(r"hesaplanan\s*kdv[^:]{0,40}:\s*(\d+(?:[.,]\d{2})?)", re.I),
+    # "Hesaplanan KDV GERÇEK (%20.0)\n156,67" veya aynı satırda boşlukla ayrılmış
+    re.compile(r"hesaplanan\s*kdv\s*(?:ger[cç]ek)?\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
     # "Hesaplanan KDV (%1.00) 7,55" — noktalısız, parantez sonrası
     re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
     # "KDV Tutarı: 80,97"
@@ -437,7 +439,12 @@ def extract_invoice_fields(
             seen_kdv.add(round(kv, 2))
             kdv_hits.append((kv, ky))
 
-    pairs = _pick_net_kdv_for_math(net_hits, kdv_hits)
+    # Net ile aynı değerdeki KDV adaylarını filtrele (404,84 hem net hem kdv olamaz)
+    net_vals = {round(v, 2) for v, _ in net_hits}
+    kdv_hits_filtered = [(v, y) for v, y in kdv_hits if round(v, 2) not in net_vals]
+    # Filtrelenmiş liste boşsa orijinali kullan (yedek)
+    kdv_hits_for_pairs = kdv_hits_filtered if kdv_hits_filtered else kdv_hits
+    pairs = _pick_net_kdv_for_math(net_hits, kdv_hits_for_pairs)
     candidates = _grand_total_candidates(bottom_first)
     bottom_last_amount = _extract_last_currency_value(bottom_first)
 
@@ -534,4 +541,3 @@ def build_extracted_summary(ocr_text: str, ocr_lines: list, fields: dict) -> dic
         ),
         "ocr_lines": ocr_lines if isinstance(ocr_lines, list) else [],
     }
-
