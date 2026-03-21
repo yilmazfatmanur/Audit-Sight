@@ -428,6 +428,17 @@ def extract_invoice_fields(
     bottom_first = _lines_bottom_first(lines_y)
 
     # --- 1. Keyword-anchored extraction (ürün satırları hariç) ---
+    # "Hesaplanan KDV (%20.00)" satırından sonra gelen tek sayılı satırı KDV olarak yakala
+    for i, ln in enumerate(lines_y):
+        if re.search(r"hesaplanan\s*kdv", ln["text"], re.I) and not _MONEY_IN_LINE.search(ln["text"].split(")")[-1] if ")" in ln["text"] else ln["text"][20:]):
+            # Sonraki satır(lar)da tek sayı var mı?
+            for j in range(i+1, min(i+3, len(lines_y))):
+                next_tx = lines_y[j]["text"].strip()
+                nums = _MONEY_IN_LINE.findall(next_tx)
+                if nums and len(next_tx) < 20:
+                    lines_y[j] = {"text": f"Hesaplanan KDV tutar: {next_tx}", "y": lines_y[j]["y"]}
+                    break
+
     net_hits = _collect_pattern_amounts(lines_y, _NET_PATTERNS, skip_product_rows=True)
     kdv_20_hits = _collect_pattern_amounts(lines_y, _KDV_20_PATTERNS, skip_product_rows=True)
     kdv_general_hits = _collect_pattern_amounts(lines_y, _KDV_PATTERNS, skip_product_rows=True)
