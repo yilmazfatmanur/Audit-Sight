@@ -289,100 +289,30 @@ def extract_invoice_fields(
     kdv = 0.0
     total = None
     
-    # ============ 1. KDV MATRAHI (NET) ============
+    # ============ 1. DOĞRUDAN ANAHTAR KELİMELERLE ARA ============
     for ln in lines_y:
         tx = ln["text"]
         tx_lower = tx.lower()
         
-        if "kdv matrah" in tx_lower or "matrah" in tx_lower:
-            numbers = _MONEY_IN_LINE.findall(tx)
-            if numbers:
-                for num in numbers:
-                    val = parse_tr_number(num)
-                    if val and val > 0:
-                        net = val
-                        break
-            
-            if net == 0:
-                idx = lines_y.index(ln)
-                for j in range(idx + 1, min(idx + 3, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    numbers = _MONEY_IN_LINE.findall(next_tx)
-                    if numbers:
-                        for num in numbers:
-                            val = parse_tr_number(num)
-                            if val and val > 0:
-                                net = val
-                                break
-                    if net > 0:
-                        break
+        # KDV Matrahı (NET)
+        if "kdv matrah" in tx_lower:
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                net = parse_tr_number(match.group(1)) or 0
         
-        if net > 0:
-            break
+        # Hesaplanan KDV
+        if "hesaplanan kdv" in tx_lower:
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                kdv = parse_tr_number(match.group(1)) or 0
+        
+        # Ödenecek Tutar
+        if "ödenecek tutar" in tx_lower or "vergiler dahil" in tx_lower:
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                total = parse_tr_number(match.group(1)) or 0
     
-    # ============ 2. HESAPLANAN KDV ============
-    for ln in lines_y:
-        tx = ln["text"]
-        tx_lower = tx.lower()
-        
-        if "hesaplanan kdv" in tx_lower or ("hesaplanan" in tx_lower and "kdv" in tx_lower):
-            numbers = _MONEY_IN_LINE.findall(tx)
-            if numbers:
-                for num in numbers:
-                    val = parse_tr_number(num)
-                    if val and val > 0:
-                        kdv = val
-                        break
-            
-            if kdv == 0:
-                idx = lines_y.index(ln)
-                for j in range(idx + 1, min(idx + 3, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    numbers = _MONEY_IN_LINE.findall(next_tx)
-                    if numbers:
-                        for num in numbers:
-                            val = parse_tr_number(num)
-                            if val and val > 0:
-                                kdv = val
-                                break
-                    if kdv > 0:
-                        break
-        
-        if kdv > 0:
-            break
-    
-    # ============ 3. ÖDENECEK TUTAR (GENEL TOPLAM) ============
-    for ln in lines_y:
-        tx = ln["text"]
-        tx_lower = tx.lower()
-        
-        if "ödenecek tutar" in tx_lower or "ödenecek" in tx_lower or "vergiler dahil" in tx_lower:
-            numbers = _MONEY_IN_LINE.findall(tx)
-            if numbers:
-                for num in numbers:
-                    val = parse_tr_number(num)
-                    if val and val > 0:
-                        total = val
-                        break
-            
-            if total is None:
-                idx = lines_y.index(ln)
-                for j in range(idx + 1, min(idx + 3, len(lines_y))):
-                    next_tx = lines_y[j]["text"]
-                    numbers = _MONEY_IN_LINE.findall(next_tx)
-                    if numbers:
-                        for num in numbers:
-                            val = parse_tr_number(num)
-                            if val and val > 0:
-                                total = val
-                                break
-                    if total is not None:
-                        break
-        
-        if total is not None:
-            break
-    
-    # ============ 4. ALTERNATİF: TÜM SAYILARI TOPLA ============
+    # ============ 2. BULUNAMADIYSA TÜM SAYILARI TOPLA ============
     if net == 0 or kdv == 0 or total is None:
         all_numbers = []
         for ln in lines_y:
@@ -407,34 +337,34 @@ def extract_invoice_fields(
                 if kdv_candidates:
                     kdv = max(kdv_candidates)
     
-    # ============ 5. EKSİK ALANLARI TAMAMLA ============
+    # ============ 3. EKSİK ALANLARI TAMAMLA ============
     if net > 0 and kdv > 0 and total is None:
-        total = float(_to_decimal_2(net) + _to_decimal_2(kdv))
+        total = net + kdv
     
     if net > 0 and total and total > net and kdv == 0:
-        kdv = float(_to_decimal_2(total) - _to_decimal_2(net))
+        kdv = total - net
     
     if kdv > 0 and total and total > kdv and net == 0:
-        net = float(_to_decimal_2(total) - _to_decimal_2(kdv))
+        net = total - kdv
     
-    # ============ 6. SON ÇARE ============
+    # ============ 4. SON ÇARE ============
     if total is None:
         bottom_first = _lines_bottom_first(lines_y)
         total = _extract_last_currency_value(bottom_first)
     
-    # ============ 7. KDV ORANINI KONTROL ET VE DÜZELT ============
-    if net > 0 and kdv > 0:
-        expected_kdv = net * 0.20
-        if abs(kdv - expected_kdv) > 1.0:
-            kdv = round(net * 0.20, 2)
+    # ============ 5. KDV ORANINI DÜZELT (%20 OLMALI) ============
+    if net > 0:
+        expected_kdv = round(net * 0.20, 2)
+        if abs(kdv - expected_kdv) > 0.5:
+            kdv = expected_kdv
             total = net + kdv
     
     return {
         "firma_adi": "Tespit Edilemedi",
         "tarih": datetime.now().strftime("%Y-%m-%d"),
-        "net_tutar": net,
-        "kdv_tutari": kdv,
-        "genel_toplam": total if total is not None else 0.0,
+        "net_tutar": round(net, 2),
+        "kdv_tutari": round(kdv, 2),
+        "genel_toplam": round(total, 2) if total is not None else 0.0,
         "total_override_applied": False,
         "total_source": "context_based",
     }
