@@ -277,8 +277,11 @@ if current is None or not isinstance(current, dict):
 
 with col_right:
     if current:
-        st.subheader("📊 Denetim Sonuçları")
-        fields = _normalize_summary_to_fields(current.get("summary"))
+        with st.expander("DEBUG"):
+             st. write(current.get("summary"))
+             st.text(current.get("ocr_text", "")[:3000])
+             st.subheader("📊 Denetim Sonuçları")
+             fields = _normalize_summary_to_fields(current.get("summary"))
         if not isinstance(fields, dict):
             fields = {}
 
