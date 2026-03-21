@@ -534,3 +534,4 @@ def build_extracted_summary(ocr_text: str, ocr_lines: list, fields: dict) -> dic
         ),
         "ocr_lines": ocr_lines if isinstance(ocr_lines, list) else [],
     }
+
