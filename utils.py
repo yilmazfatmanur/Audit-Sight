@@ -36,28 +36,26 @@ _TOTAL_KEYWORD_PATTERNS: List[Tuple[re.Pattern, int]] = [
 ]
 
 _NET_PATTERNS = [
-    # Iki nokta üstlü: "KDV Matrahı (%20.00): 404,84"
-    re.compile(r"(?:kdv\s*matrah|vergi\s*matrah|vergi\s*hari[cç]|matrah)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
+    # KDV Matrahı (en güvenilir net kaynağı)
+    re.compile(r"(?:kdv\s*matrahı?|vergi\s*matrahı?|matrah)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
     re.compile(r"(?:net\s*tutar)[^:]{0,45}:\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
-    # Noktalısız: "Mal Hizmet Toplam Tutarı 783,33 TL" veya "Mal Hizmet Toplam Tutarı: 1.625,00"
     re.compile(r"mal\s*hizmet\s*toplam\s*tutar[ıi]?\s*[:\s]\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", re.I),
 ]
 
 _KDV_PATTERNS = [
-    # "Hesaplanan KDV (%20.00) : 80,97" veya "Hesaplanan KDV GERÇEK (%20.0) 156,67" — iki nokta üstlü
-    re.compile(r"hesaplanan\s*kdv[^:]{0,40}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    # "Hesaplanan KDV GERÇEK (%20.0)\n156,67" veya aynı satırda boşlukla ayrılmış
-    re.compile(r"hesaplanan\s*kdv\s*(?:ger[cç]ek)?\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-    # "Hesaplanan KDV (%1.00) 7,55" — noktalısız, parantez sonrası
+    # Hesaplanan KDV (en güvenilir KDV kaynağı)
+    re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s*:\s*(\d+(?:[.,]\d{2})?)", re.I),
     re.compile(r"hesaplanan\s*kdv\s*\([^)]*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
-    # "KDV Tutarı: 80,97"
+    re.compile(r"hesaplanan\s*kdv[^:]{0,40}:\s*(\d+(?:[.,]\d{2})?)", re.I),
     re.compile(r"kdv\s*tutar[ıi][^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
     re.compile(r"(?:katma\s*değer|vergi\s*tutar(?:ı|i))[^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
 ]
 
+# Sadece %20 KDV için özel desenler (öncelikli)
 _KDV_20_PATTERNS = [
+    re.compile(r"hesaplanan\s*kdv\s*\(%20[.,]?\d*\)\s*:\s*(\d+(?:[.,]\d{2})?)", re.I),
+    re.compile(r"hesaplanan\s*kdv\s*\(%20[.,]?\d*\)\s+(\d+(?:[.,]\d{2})?)", re.I),
     re.compile(r"(?:%|oran[:\s]*)\s*20[^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
-    re.compile(r"kdv\s*%?\s*20[^:]{0,30}:\s*(\d+(?:[.,]\d{2})?)", re.I),
 ]
 
 _MONEY_IN_LINE = re.compile(r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2}")
@@ -417,57 +415,123 @@ def extract_invoice_fields(
     """
     Iskontolu faturalar dahil doğru Net/KDV/Toplam tespiti.
     Öncelik sırası:
-    1. 'KDV Matrahı' + 'Hesaplanan KDV' + 'Ödenecek Tutar' keyword anchor
-    2. Net+KDV=Toplam golden rule eşleşmesi
-    3. Fallback: en büyük toplam + diff
+    1. Context-based extraction: KDV Matrahı (net) + Hesaplanan KDV (kdv) + Ödenecek Tutar (total)
+    2. Keyword-anchored extraction
+    3. Net+KDV=Toplam golden rule eşleşmesi
+    4. Fallback
     """
     lines_y = _parse_ocr_lines(ocr_lines)
     if not lines_y:
         lines_y = _lines_from_text(text)
 
     bottom_first = _lines_bottom_first(lines_y)
-
-    # --- 1. Keyword-anchored extraction (ürün satırları hariç) ---
-    # "Hesaplanan KDV (%20.00)" satırından sonra gelen tek sayılı satırı KDV olarak yakala
-    for i, ln in enumerate(lines_y):
-        if re.search(r"hesaplanan\s*kdv", ln["text"], re.I) and not _MONEY_IN_LINE.search(ln["text"].split(")")[-1] if ")" in ln["text"] else ln["text"][20:]):
-            # Sonraki satır(lar)da tek sayı var mı?
-            for j in range(i+1, min(i+3, len(lines_y))):
-                next_tx = lines_y[j]["text"].strip()
-                nums = _MONEY_IN_LINE.findall(next_tx)
-                if nums and len(next_tx) < 20:
-                    lines_y[j] = {"text": f"Hesaplanan KDV tutar: {next_tx}", "y": lines_y[j]["y"]}
-                    break
-
+    
+    # ============ 1. CONTEXT-BASED EXTRACTION (EN GÜVENİLİR) ============
+    net_from_context = None
+    kdv_from_context = None
+    total_from_context = None
+    
+    for ln in lines_y:
+        tx = _normalize_whitespace(ln["text"])
+        tx_lower = tx.lower()
+        
+        # KDV Matrahı (NET TUTAR) - en güvenilir net kaynağı
+        if re.search(r"kdv\s*matrahı?|vergi\s*matrahı?|matrah", tx_lower):
+            # Sadece sayıyı bul
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                val = parse_tr_number(match.group(1))
+                if val and val > 0:
+                    net_from_context = val
+                    logger.debug(f"Net from KDV matrah: {val}")
+        
+        # Hesaplanan KDV (KDV TUTARI) - en güvenilir KDV kaynağı
+        if re.search(r"hesaplanan\s*kdv", tx_lower):
+            # Satır içinde sayı var mı?
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                val = parse_tr_number(match.group(1))
+                if val and val > 0:
+                    kdv_from_context = val
+                    logger.debug(f"KDV from Hesaplanan KDV (same line): {val}")
+            else:
+                # Sonraki satırda sayı ara (bazen KDV değeri alt satırda olabilir)
+                idx = lines_y.index(ln)
+                for j in range(idx + 1, min(idx + 3, len(lines_y))):
+                    next_tx = lines_y[j]["text"]
+                    match_next = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", next_tx)
+                    if match_next:
+                        val = parse_tr_number(match_next.group(1))
+                        if val and val > 0 and len(next_tx.strip()) < 30:  # KDV satırı genelde kısa olur
+                            kdv_from_context = val
+                            logger.debug(f"KDV from next line: {val}")
+                            break
+        
+        # Ödenecek Tutar (GENEL TOPLAM) - en güvenilir toplam kaynağı
+        if re.search(r"ödenecek\s*tutar|vergiler\s*dahil", tx_lower):
+            match = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})", tx)
+            if match:
+                val = parse_tr_number(match.group(1))
+                if val and val > 0:
+                    total_from_context = val
+                    logger.debug(f"Total from Odenecek Tutar: {val}")
+    
+    # Context-based extraction başarılıysa doğrudan kullan
+    if net_from_context and kdv_from_context and total_from_context:
+        # Doğrulama: Net + KDV = Total?
+        net_dec = _to_decimal_2(net_from_context)
+        kdv_dec = _to_decimal_2(kdv_from_context)
+        total_dec = _to_decimal_2(total_from_context)
+        
+        if abs(net_dec + kdv_dec - total_dec) <= GOLDEN_RULE_TOL:
+            logger.info(f"Context extraction successful: Net={net_from_context}, KDV={kdv_from_context}, Total={total_from_context}")
+            return {
+                "firma_adi": "Tespit Edilemedi",
+                "tarih": datetime.now().strftime("%Y-%m-%d"),
+                "net_tutar": float(net_from_context),
+                "kdv_tutari": float(kdv_from_context),
+                "genel_toplam": float(total_from_context),
+                "total_override_applied": False,
+                "total_source": "context_based",
+            }
+    
+    # ============ 2. KEYWORD-ANCHORED EXTRACTION ============
+    # Net ve KDV adaylarını topla (ürün satırlarını atla)
     net_hits = _collect_pattern_amounts(lines_y, _NET_PATTERNS, skip_product_rows=True)
+    
+    # Önce %20 KDV desenlerini dene (daha spesifik)
     kdv_20_hits = _collect_pattern_amounts(lines_y, _KDV_20_PATTERNS, skip_product_rows=True)
+    # Genel KDV desenleri
     kdv_general_hits = _collect_pattern_amounts(lines_y, _KDV_PATTERNS, skip_product_rows=True)
-
+    
+    # KDV adaylarını birleştir, %20 KDV olanlara öncelik ver
     kdv_hits = list(kdv_20_hits)
-    seen_kdv = {round(v, 2) for v, _y in kdv_hits}
+    seen_kdv = {round(v, 2) for v, _ in kdv_hits}
     for kv, ky in kdv_general_hits:
         if round(kv, 2) not in seen_kdv:
             seen_kdv.add(round(kv, 2))
             kdv_hits.append((kv, ky))
-
-    # Net ile aynı değerdeki KDV adaylarını filtrele (404,84 hem net hem kdv olamaz)
+    
+    # Net değerleri KDV adaylarından filtrele (net değer KDV olamaz)
     net_vals = {round(v, 2) for v, _ in net_hits}
     kdv_hits_filtered = [(v, y) for v, y in kdv_hits if round(v, 2) not in net_vals]
-    # Filtrelenmiş liste boşsa orijinali kullan (yedek)
     kdv_hits_for_pairs = kdv_hits_filtered if kdv_hits_filtered else kdv_hits
-    pairs = _pick_net_kdv_for_math(net_hits, kdv_hits_for_pairs)
+    
+    # Toplam adaylarını bul
     candidates = _grand_total_candidates(bottom_first)
-    bottom_last_amount = _extract_last_currency_value(bottom_first)
-
-    genel_toplam: Optional[float] = None
-    net = 0.0
-    kdv = 0.0
-    chosen = False
-
+    
     # Kesin toplam anchor'larını önce dene (pri>=98: Ödenecek Tutar, Vergiler Dahil)
     hard_total_lines = [(v, pri, y) for v, pri, y in candidates if pri >= 98]
     search_order = hard_total_lines + [c for c in candidates if c[1] < 98]
-
+    
+    net = 0.0
+    kdv = 0.0
+    genel_toplam = None
+    chosen = False
+    
+    # Net ve KDV eşleştirmesi yap
+    pairs = _pick_net_kdv_for_math(net_hits, kdv_hits_for_pairs)
+    
     for total_guess, _pri, _y in search_order:
         td = _to_decimal_2(total_guess)
         for nv, kv in pairs:
@@ -479,7 +543,7 @@ def extract_invoice_fields(
                 break
         if chosen:
             break
-
+    
     # Fallback: pairs toplamını toplam olarak kullan
     if not chosen and pairs:
         ref_n, ref_k = pairs[0]
@@ -491,15 +555,15 @@ def extract_invoice_fields(
                 kdv = float(ref_k)
                 chosen = True
                 break
-
+    
     if not chosen and pairs:
         ref_n, ref_k = pairs[0]
         genel_toplam = float(_to_decimal_2(ref_n) + _to_decimal_2(ref_k))
         net = float(ref_n)
         kdv = float(ref_k)
         chosen = True
-
-    # KDV bulunamadı ama Net bulundu: Toplam'ı keyword anchor'dan al, KDV = Toplam - Net
+    
+    # KDV bulunamadı ama Net bulundu: Toplam'dan KDV'yi hesapla
     if not chosen and net_hits:
         best_net = net_hits[0][0]
         for total_guess, pri, _y in search_order:
@@ -511,21 +575,26 @@ def extract_invoice_fields(
                     genel_toplam = float(total_guess)
                     chosen = True
                     break
-
-    if not chosen and bottom_last_amount is not None:
-        genel_toplam = float(bottom_last_amount)
-        chosen = True
-
-    # Net+KDV her zaman kazanır
+    
+    # Son çare: en alttaki sayıyı toplam olarak al
+    if not chosen:
+        bottom_last = _extract_last_currency_value(bottom_first)
+        if bottom_last is not None:
+            genel_toplam = float(bottom_last)
+            chosen = True
+    
+    # Net+KDV her zaman kazanır - toplamı hesapla ve doğrula
     if net > 0 and kdv > 0:
         calculated = float(_to_decimal_2(net) + _to_decimal_2(kdv))
         if genel_toplam is None or abs(_to_decimal_2(genel_toplam) - _to_decimal_2(calculated)) > GOLDEN_RULE_TOL:
             genel_toplam = calculated
-
+    
     if genel_toplam is None:
         net = 0.0
         kdv = 0.0
-
+    
+    logger.info(f"Extraction result: Net={net}, KDV={kdv}, Total={genel_toplam}")
+    
     return {
         "firma_adi": "Tespit Edilemedi",
         "tarih": datetime.now().strftime("%Y-%m-%d"),
