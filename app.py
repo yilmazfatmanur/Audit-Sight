@@ -169,7 +169,6 @@ with st.sidebar:
     **Net + KDV = Toplam** algoritmasıyla veri doğruluğunu garanti eder.
     """)
     
-    st.caption("Developed by Fatmanur Yılmaz | 2026")
     tab_dash, tab_hist = st.tabs(["DASHBOARD", "GEÇMİŞ"])
 
     with tab_dash:
