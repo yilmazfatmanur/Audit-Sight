@@ -1,6 +1,9 @@
-streamlit
-pandas
-easyocr
-opencv-python-headless
-Pillow
-numpy
+# AuditSight Pro — canlı ortam (sürüm sabitleme önerilir)
+streamlit>=1.28.0,<2
+pandas>=2.0.0,<3
+pytesseract>=0.3.10
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0,<3
+easyocr>=1.7.0
+google-generativeai>=0.8.0
