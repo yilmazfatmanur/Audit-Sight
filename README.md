@@ -89,15 +89,7 @@ python -m pytest tests/ -q
 |------|------|
 | `app.py` | Streamlit UI, session state, exports |
 | `utils.py` | OCR, parsing, validation, Gemini enrichment |
-| `tests/` | Pytest for core logic |
-
----
-
-## Public vs private GitHub
-
-- **Evaluation / portfolio / hiring:** Often reviewers expect a **public** repo or read access so they can browse code and history.
-- **Private** is fine if the org only asks for a zip or invited access — follow their instructions.
-- **Never** commit API keys, real `secrets.toml`, or personal sample data (e.g. `invoice_db.json` with sensitive content).
+| `tests/` | Pytest for (e.g. `invoice_db.json` with sensitive content).
 
 ---
 
