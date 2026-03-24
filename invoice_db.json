@@ -1,317 +1,92 @@
 [
     {
-        "id": "1e1eff6f",
-        "filename": "WhatsApp Image 2026-03-20 at 02.25.54.jpeg",
-        "created_at": "2026-03-20T03:31:57.351420",
-        "ocr_text": "1of 2\nanayi ve Ticaret Limited\nBulvarı Agaoglu Sky Towers\nBlok D:141 Atasehir\nIstanbul\nTel: 5322013830\ne-Arsiv Fatura\n2posta:\ngururlaloglu@vitisfera co\nVergi Dairesi: Kozyatag\nVKN: 9251106319\nSAYIN\nFatmanur Yılmaz\nFerah Mah Ferah Mahallesi Darı Sokak Kardesler Apartmanı\nNo46 Daire8 Üsküdar Istanbul Tr\nosta:\npf+erorgwap@trendyolmail com\nVergi Dairesi:\nTCKN: 1llllllllll\nETTN: 9cc3c338-5e4b 4204 b776 4b6eld4bf898\nVITISFERA\nTarih:\n18 03-2026\nFatura No:\nEAB2026000011054\nOzellestirme No:\nTR1.2\nSenaryo:\nEARSIVFATURA\nFatura Tipi:\nSATIS\nSipariş No:\n11061942965\nSipariş Tarihi:\n18 03-2026\nSon Ödeme Tarihi:\n18 03-2026\nOlusma Zamanı:\n17.54.45\nSıra\nskonto Artırım\nIskonto ( Alrtırım\nMal Hizmet\nKDV\nKDV\nMal Hizmet\nMiktar\nBirim Fiyat\nOranı\nTutarı\nTutarı\nTutarı\n082,4455\n7,55\nRSHOT\n9630,21\n327,00 TL\n755,45 TL\n91,00\nAdet\nMal Hizmct Toplam Tutarı:\n1.082,45\nToplam Iskonto:\n327,00\nKDV Matrahı ( %1.00):\n755,45\nVergi Hariç Tutar:\n755,45\nHesaplanan KDV (%1.00)\n7,55\nVergiler Dahil Toplam Tutar:\n763,00\nOdenecek Tutar:\n763,00\nOranı",
+        "id": "a1b2c3d4",
+        "filename": "ornek_fatura_demo.jpeg",
+        "created_at": "2026-03-20T12:00:00.000000",
+        "ocr_text": "1of 2\nÖrnek Sanayi ve Ticaret Limited Şti.\nÖrnek Bulvar No:100\nBlok A:12 Kadıköy\nİstanbul\nTel: 5551234567\ne-Arşiv Fatura\nE-posta:\nsatis@ornekfirma.example\nVergi Dairesi: Örnek Vergi Dairesi\nVKN: 1234567890\nSAYIN\nDemo Kullanıcı\nÖrnek Mahalle Örnek Sokak No:1 Daire:2\n34000 İstanbul\nE-posta:\nalici@example.com\nVergi Dairesi:\nTCKN: 11111111111\nETTN: 00000000-0000-4000-8000-000000000001\nORNEKFIRMA\nTarih:\n18.03.2026\nFatura No:\nEAB2026000099999\nÖzelleştirme No:\nTR1.2\nSenaryo:\nEARSIVFATURA\nFatura Tipi:\nSATIS\nSipariş No:\n98765432109\nSipariş Tarihi:\n18.03.2026\nSon Ödeme Tarihi:\n18.03.2026\nOluşma Zamanı:\n17:54:45\nSıra\nİskonto Artırım\nİskonto\nMal Hizmet\nKDV\nKDV\nMal Hizmet\nMiktar\nBirim Fiyat\nOranı\nTutarı\nTutarı\nTutarı\n082,4455\n7,55\nÜRÜN\n1.082,45\n327,00 TL\n755,45 TL\n91,00\nAdet\nMal Hizmet Toplam Tutarı:\n1.082,45\nToplam İskonto:\n327,00\nKDV Matrahı (%1.00):\n755,45\nVergi Hariç Tutar:\n755,45\nHesaplanan KDV (%1.00)\n7,55\nVergiler Dahil Toplam Tutar:\n763,00\nÖdenecek Tutar:\n763,00\nOranı",
         "ocr_lines": [
-            {
-                "text": "1of 2",
-                "confidence": 0.9844190288692755
-            },
-            {
-                "text": "anayi ve Ticaret Limited",
-                "confidence": 0.7587344720509177
-            },
-            {
-                "text": "Bulvarı Agaoglu Sky Towers",
-                "confidence": 0.8806640516399739
-            },
-            {
-                "text": "Blok D:141 Atasehir",
-                "confidence": 0.7323643762987675
-            },
-            {
-                "text": "Istanbul",
-                "confidence": 0.970863221719005
-            },
-            {
-                "text": "Tel: 5322013830",
-                "confidence": 0.9994301960716232
-            },
-            {
-                "text": "e-Arsiv Fatura",
-                "confidence": 0.8309182289889752
-            },
-            {
-                "text": "2posta:",
-                "confidence": 0.20113811861558809
-            },
-            {
-                "text": "gururlaloglu@vitisfera co",
-                "confidence": 0.8535688651442842
-            },
-            {
-                "text": "Vergi Dairesi: Kozyatag",
-                "confidence": 0.9833173145129599
-            },
-            {
-                "text": "VKN: 9251106319",
-                "confidence": 0.9795753442607675
-            },
-            {
-                "text": "SAYIN",
-                "confidence": 0.999506796191297
-            },
-            {
-                "text": "Fatmanur Yılmaz",
-                "confidence": 0.9961527489037811
-            },
-            {
-                "text": "Ferah Mah Ferah Mahallesi Darı Sokak Kardesler Apartmanı",
-                "confidence": 0.9294813191149306
-            },
-            {
-                "text": "No46 Daire8 Üsküdar Istanbul Tr",
-                "confidence": 0.8826521135185297
-            },
-            {
-                "text": "osta:",
-                "confidence": 0.7774158511439849
-            },
-            {
-                "text": "pf+erorgwap@trendyolmail com",
-                "confidence": 0.7195055547411072
-            },
-            {
-                "text": "Vergi Dairesi:",
-                "confidence": 0.9986490859677833
-            },
-            {
-                "text": "TCKN: 1llllllllll",
-                "confidence": 0.8260018898087231
-            },
-            {
-                "text": "ETTN: 9cc3c338-5e4b 4204 b776 4b6eld4bf898",
-                "confidence": 0.64101181276725
-            },
-            {
-                "text": "VITISFERA",
-                "confidence": 0.9998837675651279
-            },
-            {
-                "text": "Tarih:",
-                "confidence": 0.9997318368110175
-            },
-            {
-                "text": "18 03-2026",
-                "confidence": 0.9269726286014545
-            },
-            {
-                "text": "Fatura No:",
-                "confidence": 0.7635852358959756
-            },
-            {
-                "text": "EAB2026000011054",
-                "confidence": 0.9828584649756048
-            },
-            {
-                "text": "Ozellestirme No:",
-                "confidence": 0.9729718602811781
-            },
-            {
-                "text": "TR1.2",
-                "confidence": 0.5743954162482545
-            },
-            {
-                "text": "Senaryo:",
-                "confidence": 0.9841777359603485
-            },
-            {
-                "text": "EARSIVFATURA",
-                "confidence": 0.9995743855310352
-            },
-            {
-                "text": "Fatura Tipi:",
-                "confidence": 0.99593869939721
-            },
-            {
-                "text": "SATIS",
-                "confidence": 0.951526848905637
-            },
-            {
-                "text": "Sipariş No:",
-                "confidence": 0.7538228529060959
-            },
-            {
-                "text": "11061942965",
-                "confidence": 0.9963240370403489
-            },
-            {
-                "text": "Sipariş Tarihi:",
-                "confidence": 0.988554603034797
-            },
-            {
-                "text": "18 03-2026",
-                "confidence": 0.543673734135242
-            },
-            {
-                "text": "Son Ödeme Tarihi:",
-                "confidence": 0.9058802206738337
-            },
-            {
-                "text": "18 03-2026",
-                "confidence": 0.9753385411841446
-            },
-            {
-                "text": "Olusma Zamanı:",
-                "confidence": 0.8284902268353969
-            },
-            {
-                "text": "17.54.45",
-                "confidence": 0.7650088186596562
-            },
-            {
-                "text": "Sıra",
-                "confidence": 0.9432013034820557
-            },
-            {
-                "text": "skonto Artırım",
-                "confidence": 0.46846262622060186
-            },
-            {
-                "text": "Iskonto ( Alrtırım",
-                "confidence": 0.6139438482839128
-            },
-            {
-                "text": "Mal Hizmet",
-                "confidence": 0.9885060753907308
-            },
-            {
-                "text": "KDV",
-                "confidence": 0.9818270813125188
-            },
-            {
-                "text": "KDV",
-                "confidence": 0.9908075630703307
-            },
-            {
-                "text": "Mal Hizmet",
-                "confidence": 0.950002688261869
-            },
-            {
-                "text": "Miktar",
-                "confidence": 0.9999940139563674
-            },
-            {
-                "text": "Birim Fiyat",
-                "confidence": 0.9847288265478789
-            },
-            {
-                "text": "Oranı",
-                "confidence": 0.9955228452939101
-            },
-            {
-                "text": "Tutarı",
-                "confidence": 0.9928576323319054
-            },
-            {
-                "text": "Tutarı",
-                "confidence": 0.9968580309944755
-            },
-            {
-                "text": "Tutarı",
-                "confidence": 0.9982845958372939
-            },
-            {
-                "text": "082,4455",
-                "confidence": 0.6371118274555927
-            },
-            {
-                "text": "7,55",
-                "confidence": 0.910659392411287
-            },
-            {
-                "text": "RSHOT",
-                "confidence": 0.900901666034531
-            },
-            {
-                "text": "9630,21",
-                "confidence": 0.7761472758772237
-            },
-            {
-                "text": "327,00 TL",
-                "confidence": 0.9642954885745736
-            },
-            {
-                "text": "755,45 TL",
-                "confidence": 0.3461693661954878
-            },
-            {
-                "text": "91,00",
-                "confidence": 0.841237275322479
-            },
-            {
-                "text": "Adet",
-                "confidence": 0.979864239692688
-            },
-            {
-                "text": "Mal Hizmct Toplam Tutarı:",
-                "confidence": 0.7220126021760354
-            },
-            {
-                "text": "1.082,45",
-                "confidence": 0.9973638762485327
-            },
-            {
-                "text": "Toplam Iskonto:",
-                "confidence": 0.778862126821489
-            },
-            {
-                "text": "327,00",
-                "confidence": 0.9986561501023499
-            },
-            {
-                "text": "KDV Matrahı ( %1.00):",
-                "confidence": 0.3405840295559804
-            },
-            {
-                "text": "755,45",
-                "confidence": 0.9965003009119651
-            },
-            {
-                "text": "Vergi Hariç Tutar:",
-                "confidence": 0.9463380922074911
-            },
-            {
-                "text": "755,45",
-                "confidence": 0.6384390855814066
-            },
-            {
-                "text": "Hesaplanan KDV (%1.00)",
-                "confidence": 0.8034888528545312
-            },
-            {
-                "text": "7,55",
-                "confidence": 0.5634962736527424
-            },
-            {
-                "text": "Vergiler Dahil Toplam Tutar:",
-                "confidence": 0.9646771844741094
-            },
-            {
-                "text": "763,00",
-                "confidence": 0.9849664316142684
-            },
-            {
-                "text": "Odenecek Tutar:",
-                "confidence": 0.9560392571393493
-            },
-            {
-                "text": "763,00",
-                "confidence": 0.9009605732775932
-            },
-            {
-                "text": "Oranı",
-                "confidence": 0.8906939098037628
-            }
+            { "text": "1of 2", "confidence": 0.98 },
+            { "text": "Örnek Sanayi ve Ticaret Limited Şti.", "confidence": 0.76 },
+            { "text": "Örnek Bulvar No:100", "confidence": 0.88 },
+            { "text": "Blok A:12 Kadıköy", "confidence": 0.73 },
+            { "text": "İstanbul", "confidence": 0.97 },
+            { "text": "Tel: 5551234567", "confidence": 0.999 },
+            { "text": "e-Arşiv Fatura", "confidence": 0.83 },
+            { "text": "E-posta:", "confidence": 0.2 },
+            { "text": "satis@ornekfirma.example", "confidence": 0.85 },
+            { "text": "Vergi Dairesi: Örnek Vergi Dairesi", "confidence": 0.98 },
+            { "text": "VKN: 1234567890", "confidence": 0.98 },
+            { "text": "SAYIN", "confidence": 0.999 },
+            { "text": "Demo Kullanıcı", "confidence": 0.996 },
+            { "text": "Örnek Mahalle Örnek Sokak No:1 Daire:2", "confidence": 0.93 },
+            { "text": "34000 İstanbul", "confidence": 0.88 },
+            { "text": "E-posta:", "confidence": 0.78 },
+            { "text": "alici@example.com", "confidence": 0.72 },
+            { "text": "Vergi Dairesi:", "confidence": 0.999 },
+            { "text": "TCKN: 11111111111", "confidence": 0.83 },
+            { "text": "ETTN: 00000000-0000-4000-8000-000000000001", "confidence": 0.64 },
+            { "text": "ORNEKFIRMA", "confidence": 0.999 },
+            { "text": "Tarih:", "confidence": 0.999 },
+            { "text": "18.03.2026", "confidence": 0.93 },
+            { "text": "Fatura No:", "confidence": 0.76 },
+            { "text": "EAB2026000099999", "confidence": 0.98 },
+            { "text": "Özelleştirme No:", "confidence": 0.97 },
+            { "text": "TR1.2", "confidence": 0.57 },
+            { "text": "Senaryo:", "confidence": 0.98 },
+            { "text": "EARSIVFATURA", "confidence": 0.999 },
+            { "text": "Fatura Tipi:", "confidence": 0.996 },
+            { "text": "SATIS", "confidence": 0.95 },
+            { "text": "Sipariş No:", "confidence": 0.75 },
+            { "text": "98765432109", "confidence": 0.996 },
+            { "text": "Sipariş Tarihi:", "confidence": 0.99 },
+            { "text": "18.03.2026", "confidence": 0.54 },
+            { "text": "Son Ödeme Tarihi:", "confidence": 0.91 },
+            { "text": "18.03.2026", "confidence": 0.98 },
+            { "text": "Oluşma Zamanı:", "confidence": 0.83 },
+            { "text": "17:54:45", "confidence": 0.77 },
+            { "text": "Sıra", "confidence": 0.94 },
+            { "text": "İskonto Artırım", "confidence": 0.47 },
+            { "text": "İskonto", "confidence": 0.61 },
+            { "text": "Mal Hizmet", "confidence": 0.99 },
+            { "text": "KDV", "confidence": 0.98 },
+            { "text": "KDV", "confidence": 0.99 },
+            { "text": "Mal Hizmet", "confidence": 0.95 },
+            { "text": "Miktar", "confidence": 0.999 },
+            { "text": "Birim Fiyat", "confidence": 0.98 },
+            { "text": "Oranı", "confidence": 0.996 },
+            { "text": "Tutarı", "confidence": 0.99 },
+            { "text": "Tutarı", "confidence": 0.997 },
+            { "text": "Tutarı", "confidence": 0.998 },
+            { "text": "082,4455", "confidence": 0.64 },
+            { "text": "7,55", "confidence": 0.91 },
+            { "text": "ÜRÜN", "confidence": 0.9 },
+            { "text": "1.082,45", "confidence": 0.78 },
+            { "text": "327,00 TL", "confidence": 0.96 },
+            { "text": "755,45 TL", "confidence": 0.35 },
+            { "text": "91,00", "confidence": 0.84 },
+            { "text": "Adet", "confidence": 0.98 },
+            { "text": "Mal Hizmet Toplam Tutarı:", "confidence": 0.72 },
+            { "text": "1.082,45", "confidence": 0.997 },
+            { "text": "Toplam İskonto:", "confidence": 0.78 },
+            { "text": "327,00", "confidence": 0.999 },
+            { "text": "KDV Matrahı (%1.00):", "confidence": 0.34 },
+            { "text": "755,45", "confidence": 0.997 },
+            { "text": "Vergi Hariç Tutar:", "confidence": 0.95 },
+            { "text": "755,45", "confidence": 0.64 },
+            { "text": "Hesaplanan KDV (%1.00)", "confidence": 0.8 },
+            { "text": "7,55", "confidence": 0.56 },
+            { "text": "Vergiler Dahil Toplam Tutar:", "confidence": 0.96 },
+            { "text": "763,00", "confidence": 0.98 },
+            { "text": "Ödenecek Tutar:", "confidence": 0.96 },
+            { "text": "763,00", "confidence": 0.9 },
+            { "text": "Oranı", "confidence": 0.89 }
         ],
         "summary": {
-            "firma_adi": "anayi ve Ticaret Limited",
-            "tarih": null,
-            "net_tutar": 9629.21,
-            "kdv_tutari": 1.0,
-            "genel_toplam": 9630.21
+            "firma_adi": "Örnek Sanayi ve Ticaret Limited Şti.",
+            "tarih": "18.03.2026",
+            "net_tutar": 755.45,
+            "kdv_tutari": 7.55,
+            "genel_toplam": 763.0
         }
     }
 ]
